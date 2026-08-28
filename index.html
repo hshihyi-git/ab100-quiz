@@ -64,7 +64,10 @@ border-radius:8px;background:var(--s1);cursor:pointer;margin-bottom:8px;transiti
 </head>
 <body>
 <div class="wrap">
-<h1>AB-100 Agentic AI Business Solutions Architect 雙語題庫</h1>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+  <h1 style="margin:0">AB-100 Agentic AI Business Solutions Architect 雙語題庫</h1>
+  <button id="dl" class="btn-toggle" style="white-space:nowrap;padding:6px 12px;font-size:13px" title="下載完整題庫 HTML 到本機，可完全離線使用">📥 下載離線 HTML</button>
+</div>
 <p class="sub">支援中/英題型切換，解答一律以繁體中文深入剖析。依據官方大綱配分：Plan 25–30%、Design 35–40%、Deploy 30–35%。支援鍵盤 ABCD 或 1-4 選答與 Enter 送出。</p>
 
 <div id="setup">
@@ -1245,19 +1248,48 @@ $("start").onclick=()=>{
  start(list,$("mode").value);
 };
 
+function triggerDownload(text, filename){
+  const blob = new Blob([text], {type: "text/html;charset=utf-8"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+async function downloadHtml(){
+  try{
+    if(window.location.protocol.startsWith("http")){
+      const res = await fetch(window.location.href);
+      if(res.ok){
+        const text = await res.text();
+        triggerDownload(text, "AB100-practice-bilingual_v1.html");
+        return;
+      }
+    }
+  }catch(e){}
+  const fullHtml = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+  triggerDownload(fullHtml, "AB100-practice-bilingual_v1.html");
+}
+
+if($("dl")) $("dl").onclick = downloadHtml;
+
 document.addEventListener("keydown",e=>{
- if($("quiz").style.display==="none")return;
- const key=e.key.toUpperCase();
- let i=-1;
- if(key>="1" && key<="4") i = +key - 1;
- else if(key>="A" && key<="D") i = key.charCodeAt(0) - 65;
- 
- if(i>=0 && S.list[S.i] && i<S.list[S.i].o_zh.length){
-   pick(i);
- } else if(e.key==="Enter"){
-   e.preventDefault();
-   act();
- }
+  if($("quiz").style.display==="none")return;
+  const key=e.key.toUpperCase();
+  let i=-1;
+  if(key>="1" && key<="4") i = +key - 1;
+  else if(key>="A" && key<="D") i = key.charCodeAt(0) - 65;
+  
+  if(i>=0 && S.list[S.i] && i<S.list[S.i].o_zh.length){
+    pick(i);
+  } else if(e.key==="Enter"){
+    e.preventDefault();
+    act();
+  }
 });
 </script>
 </body>

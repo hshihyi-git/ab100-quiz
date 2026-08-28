@@ -36,6 +36,13 @@ border-radius:8px;background:var(--s1);cursor:pointer;margin-bottom:8px;transiti
 .opt:hover{border-color:var(--tx3);background:var(--card)}
 .opt .n{font-size:14px;min-width:20px;font-weight:700;margin-top:1px;color:var(--tx2)}
 .opt .t{flex:1;font-size:15px;line-height:1.5}
+.q-en{font-size:15.5px;font-weight:600;color:var(--tx);line-height:1.55}
+.q-sub{font-size:14px;color:var(--tx2);margin-top:6px;line-height:1.55;font-weight:400}
+.opt-en{font-size:14.5px;line-height:1.45;color:inherit}
+.opt-sub{font-size:13px;color:var(--tx2);margin-top:4px;line-height:1.45;font-weight:400}
+.opt.ok .opt-sub{color:var(--ok-tx);opacity:0.9}
+.opt.no .opt-sub{color:var(--no-tx);opacity:0.9}
+.opt.pick .opt-sub{color:var(--ac-tx);opacity:0.9}
 .opt.pick{background:var(--ac-bg);border-color:var(--ac-bd);color:var(--ac-tx)}
 .opt.ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok-tx);font-weight:500}
 .opt.ok .n{color:var(--ok-tx)}
@@ -68,13 +75,14 @@ border-radius:8px;background:var(--s1);cursor:pointer;margin-bottom:8px;transiti
   <h1 style="margin:0">AB-100 Agentic AI Business Solutions Architect 雙語題庫</h1>
   <button id="dl" class="btn-toggle" style="white-space:nowrap;padding:6px 12px;font-size:13px" title="下載完整題庫 HTML 到本機，可完全離線使用">📥 下載離線 HTML</button>
 </div>
-<p class="sub">支援中/英題型切換，解答一律以繁體中文深入剖析。依據官方大綱配分：Plan 25–30%、Design 35–40%、Deploy 30–35%。支援鍵盤 ABCD 或 1-4 選答與 Enter 送出。</p>
+<p class="sub">支援中/英/雙語題型切換，解答一律以繁體中文深入剖析。依據官方大綱配分：Plan 25–30%、Design 35–40%、Deploy 30–35%。支援鍵盤 ABCD 或 1-4 選答與 Enter 送出。</p>
 
 <div id="setup">
   <div class="row">
     <div><label for="lang">題目語言 (Language)</label><select id="lang">
-      <option value="zh">繁體中文題目 (Traditional Chinese)</option>
-      <option value="en">英文題目 (English Exam Style)</option></select></div>
+      <option value="en">英文題目 (English Exam Style)</option>
+      <option value="bi">中英雙語對照 (Bilingual)</option>
+      <option value="zh">繁體中文題目 (Traditional Chinese)</option></select></div>
     <div><label for="mode">模式</label><select id="mode">
       <option value="practice">練習模式 — 每題立即看繁中解析</option>
       <option value="exam">模擬考模式 — 全部作答完畢公布成績</option></select></div>
@@ -100,8 +108,6 @@ const DOM={
   DESIGN:"設計 AI 解決方案 (Design 35-40%)",
   DEPLOY:"部署、治理與維運 (Deploy 30-35%)"
 };
-
-let curLang="zh";
 
 const Q=[
 // ==================== PLAN (規劃 AI 解決方案) ====================
@@ -1084,18 +1090,40 @@ const isOk=q=>{const cc=Array.isArray(q.a)?q.a:[q.a];return cc.length===S.sel.le
 const loadWrong=()=>{try{return JSON.parse(localStorage.getItem(KEY)||"[]");}catch(e){return[];}};
 const saveWrong=idx=>{try{localStorage.setItem(KEY,JSON.stringify(idx));}catch(e){}};
 
+let curLang="en";
+let baseLang="en";
+
 function getQData(q){
-  const isEn = curLang==="en";
-  return {
-    q: (isEn && q.q_en) ? q.q_en : (q.q_zh || q.q),
-    o: (isEn && q.o_en) ? q.o_en : (q.o_zh || q.o),
-    e: q.e // 永遠繁體中文解析
-  };
+  if(curLang === "bi"){
+    const qHtml = '<div class="q-en">' + (q.q_en || q.q) + '</div><div class="q-sub">' + (q.q_zh || q.q) + '</div>';
+    const oHtml = (q.o_en || q.o).map((enText, idx) => {
+      const zhText = q.o_zh ? q.o_zh[idx] : (q.o ? q.o[idx] : '');
+      return '<div class="opt-en">' + enText + '</div><div class="opt-sub">' + zhText + '</div>';
+    });
+    return {
+      q: qHtml,
+      o: oHtml,
+      e: q.e // 永遠繁體中文解析
+    };
+  } else if(curLang === "en"){
+    return {
+      q: q.q_en || q.q_zh || q.q,
+      o: q.o_en || q.o_zh || q.o,
+      e: q.e
+    };
+  } else {
+    return {
+      q: q.q_zh || q.q,
+      o: q.o_zh || q.o,
+      e: q.e
+    };
+  }
 }
 
 function start(list,mode){
  if(!list.length){alert("這個範圍目前沒有題目或尚未有答錯紀錄。");return;}
  curLang = $("lang").value;
+ baseLang = curLang;
  S={list:list,i:0,sel:[],ans:[],mode:mode,shown:false};
  $("setup").style.display="none";$("result").style.display="none";$("quiz").style.display="block";
  render();window.scrollTo(0,0);
@@ -1138,18 +1166,31 @@ function render(){
   const cor=Array.isArray(qObj.a)?qObj.a:[qObj.a];
   const corLetters=cor.map(x=>String.fromCharCode(65+x)).join(', ');
 
+  const mulLabel = qObj.m 
+    ? (curLang === "en" ? "Choose TWO options" : (curLang === "bi" ? "Choose TWO (複選兩項)" : "複選題 — 請選擇兩項"))
+    : (curLang === "en" ? "Single Choice" : (curLang === "bi" ? "Single Choice (單選題)" : "單選題"));
+
+  let toggleBtnText = "🌐 切換中英雙語";
+  if(curLang === "bi"){
+    toggleBtnText = (baseLang === "zh") ? "🇹🇼 切換純中文" : "🇺🇸 切換純英文";
+  } else if(curLang === "en"){
+    toggleBtnText = "🌐 切換中英雙語";
+  } else if(curLang === "zh"){
+    toggleBtnText = "🌐 切換中英雙語";
+  }
+
   let h='<div class="top"><div class="bar"><i style="width:'+pct+'%"></i></div><span style="font-size:13px;color:var(--tx2);white-space:nowrap;font-weight:600">'+(S.i+1)+' / '+n+'</span></div>';
   h+='<div class="card">';
-  h+='<div class="tag-bar"><div><span class="tag">'+DOM[qObj.d]+'</span>'+(qObj.m?'<span class="tag mul">'+(curLang==="en"?"Choose TWO options":"複選題 — 請選擇兩項")+'</span>':'<span class="tag" style="background:var(--s1);color:var(--tx2)">'+(curLang==="en"?"Single Choice":"單選題")+'</span>')+'</div>';
-  h+='<button class="btn-toggle" id="toggle-lang">🌐 '+(curLang==="en"?"切換中文題目":"Switch to English")+'</button></div>';
-  h+='<p class="q">'+qData.q+'</p>';
+  h+='<div class="tag-bar"><div><span class="tag">'+DOM[qObj.d]+'</span>'+(qObj.m?'<span class="tag mul">'+mulLabel+'</span>':'<span class="tag" style="background:var(--s1);color:var(--tx2)">'+mulLabel+'</span>')+'</div>';
+  h+='<button class="btn-toggle" id="toggle-lang">'+toggleBtnText+'</button></div>';
+  h+='<div class="q">'+qData.q+'</div>';
 
   qData.o.forEach((o,i)=>{
     let cls="opt";const p=S.sel.includes(i);
     const letter=String.fromCharCode(65+i);
     if(S.shown){cls+=" done";if(cor.includes(i))cls+=" ok";else if(p)cls+=" no";}
     else if(p)cls+=" pick";
-    h+='<div class="'+cls+'" data-i="'+i+'"><span class="n">'+letter+'</span><span class="t">'+o+'</span></div>';
+    h+='<div class="'+cls+'" data-i="'+i+'"><span class="n">'+letter+'</span><div class="t">'+o+'</div></div>';
   });
 
   if(S.shown){
@@ -1158,13 +1199,25 @@ function render(){
     h+='</div>';
   }
 
-  h+='</div><div style="margin-top:1.25rem"><button id="act">'+(S.shown?(S.i===n-1?(curLang==="en"?"View Exam Results":"查看測驗成績"):(curLang==="en"?"Next Question →":"下一題 →")):(curLang==="en"?"Submit Answer":"送出答案"))+'</button></div>';
+  const submitBtnText = S.shown
+    ? (S.i === n - 1 
+        ? (curLang === "en" ? "View Exam Results" : (curLang === "bi" ? "查看測驗成績 (View Results)" : "查看測驗成績"))
+        : (curLang === "en" ? "Next Question →" : (curLang === "bi" ? "下一題 (Next) →" : "下一題 →")))
+    : (curLang === "en" ? "Submit Answer" : (curLang === "bi" ? "送出答案 (Submit)" : "送出答案"));
+
+  h+='</div><div style="margin-top:1.25rem"><button id="act">'+submitBtnText+'</button></div>';
 
   $("quiz").innerHTML=h;
   document.querySelectorAll(".opt").forEach(el=>{el.onclick=()=>pick(+el.dataset.i);});
   $("act").onclick=act;
   $("toggle-lang").onclick=()=>{
-    curLang = curLang === "zh" ? "en" : "zh";
+    if(curLang === "en"){
+      curLang = "bi";
+    } else if(curLang === "bi"){
+      curLang = (baseLang === "zh") ? "zh" : "en";
+    } else if(curLang === "zh"){
+      curLang = "bi";
+    }
     render();
   };
 }
@@ -1218,10 +1271,15 @@ function finish(){
     h+='<p class="lbl" style="margin:1.5rem 0 10px">本次答錯題目檢視 ('+w.length+' 題)</p>';
     w.forEach(a=>{
       const qObj=Q[a.qi], qData=getQData(qObj), cor=Array.isArray(qObj.a)?qObj.a:[qObj.a];
-      const corLetters=cor.map(x=>String.fromCharCode(65+x)+'. '+qData.o[x]).join(' / ');
+      const corLetters=cor.map(x=>{
+        const letter = String.fromCharCode(65+x);
+        if(curLang === "en") return letter + '. ' + (qObj.o_en ? qObj.o_en[x] : qData.o[x]);
+        if(curLang === "bi") return letter + '. ' + (qObj.o_en ? qObj.o_en[x] : '') + ' (' + (qObj.o_zh ? qObj.o_zh[x] : '') + ')';
+        return letter + '. ' + (qObj.o_zh ? qObj.o_zh[x] : qData.o[x]);
+      }).join(' / ');
       const corShort=cor.map(x=>String.fromCharCode(65+x)).join(', ');
-      h+='<div class="card" style="background:var(--s1);margin-bottom:12px"><p style="font-size:14px;margin:0 0 8px;font-weight:600">'+qData.q+'</p>';
-      h+='<p style="font-size:13px;margin:0 0 10px;color:var(--ok-tx);font-weight:700">正確選項：'+corLetters+'</p>';
+      h+='<div class="card" style="background:var(--s1);margin-bottom:12px"><div class="q" style="margin-top:0">'+qData.q+'</div>';
+      h+='<p style="font-size:13px;margin:10px 0;color:var(--ok-tx);font-weight:700">正確選項：'+corLetters+'</p>';
       h+='<div class="exp" style="margin-top:10px;padding-top:10px">';
       h+='<div class="lbl">試題詳解與考點分析 (繁體中文)</div>';
       h+=formatExp(qData.e, corShort);
